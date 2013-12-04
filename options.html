@@ -1,0 +1,30 @@
+<html>
+    <head>
+        <title>
+            Options for Trello Scrum Master Burndown Tool
+        </title>
+    </head>
+    <body>
+        <!-- 
+            TODO: - Allow more states that "Open" and "Closed"
+                  - Make a better way of separating the column names
+        -->
+        <p>
+            Please enter the names of the columns that represent <strong>open</strong> tickets:
+            <br />
+            <input type="text" id="opencolumns" size="100" />
+        </p>
+        
+        <p>
+            Please enter the names of the columns that represent <strong>closed</strong> tickets:
+            <br />
+            <input type="text" id="closedcolumns" size="100" />
+        </p>
+        
+        <div id="status"></div>
+            <button id="save">Save</button>
+        </body>
+        
+        <script src="js/options.js"></script>
+    </body>
+</html>
