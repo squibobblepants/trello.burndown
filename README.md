@@ -16,7 +16,9 @@ Installation
 
  - Open the extensions page in Chrome - chrome://extensions/
  - Drag [trello.burndown.crx](https://raw.github.com/squibobblepants/trello.burndown/master/trello.burndown.crx) onto the window.
- - 
+ - Click the "options" link under the extension description
+ - Fill in the form you see with a comma separated list of column names (case sensitive) that represent open and closed tickets, click save
+ - Visit the Trello board you are using, and refresh it
 
 Features
 --------
