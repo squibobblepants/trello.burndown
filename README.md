@@ -33,7 +33,7 @@ Development
  - Make sure to remove any versions of the plugin.
  - Check the "Developer mode" checkbox in the top right of the page.
  - Click "Load unpacked extension"
- - Navigate to the directory you checked out the repository into and click OK
+ - Navigate to the src directory in the folder you checked out the repository into and click OK
 
 
 Building
@@ -43,6 +43,7 @@ Building
  - Open the extensions page in Chrome - chrome://extensions/
  - Check the "Developer mode" checkbox in the top right of the page.
  - Click "Pack extension"
- - Select the repository's directory and trello.burndown.pem and click OK
+ - Select the repository's src directory and trello.burndown.pem and click OK
+ - Rename src.crx to trello.burndown.crx
  - Update the version in updates.xml
  - Commit and push to git server
