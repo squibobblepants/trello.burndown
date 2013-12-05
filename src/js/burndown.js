@@ -35,7 +35,7 @@ Burndown.initialiseTopline = function() {
                 Burndown.openUnpointed + " unpointed cards." +
                 "</span>" +
                 "</div>";
-            console.log(summary);
+            
             menubar.append(summary);
             
             // Build pop-over
@@ -129,17 +129,20 @@ Burndown.populate = function() {
     // Calculate some points and ting.
     for (var i=0; i<columns.length; i++) {
         var column = $(columns[i]);
-        var colheader = $(".list-header h2", column).text();
-        if (Burndown.oc.indexOf(colheader) !== -1) {
-            var totals = Burndown.countCardsAndPointsInColumn(column);
-            Burndown.openCards += totals['cards'];
-            Burndown.openUnpointed += totals['unpointed'];
-            Burndown.openPoints += totals['points'];
-        } else if (Burndown.cc.indexOf(colheader) !== -1) {
-            var totals = Burndown.countCardsAndPointsInColumn(column);
-            Burndown.closedCards += totals['cards'];
-            Burndown.closedPoints += totals['points'];
-            Burndown.closedUnpointed += totals['unpointed'];
+        var headernode = $(".list-header h2", column);
+        if (headernode.length != 0) {
+            var colheader = $(".list-header h2", column)[0].childNodes[0].textContent;
+            if (Burndown.oc.indexOf(colheader) !== -1) {
+                var totals = Burndown.countCardsAndPointsInColumn(column);
+                Burndown.openCards += totals['cards'];
+                Burndown.openUnpointed += totals['unpointed'];
+                Burndown.openPoints += totals['points'];
+            } else if (Burndown.cc.indexOf(colheader) !== -1) {
+                var totals = Burndown.countCardsAndPointsInColumn(column);
+                Burndown.closedCards += totals['cards'];
+                Burndown.closedPoints += totals['points'];
+                Burndown.closedUnpointed += totals['unpointed'];
+            }
         }
     }
     
