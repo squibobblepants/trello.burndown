@@ -129,7 +129,15 @@ Burndown.populate = function() {
     // Calculate some points and ting.
     for (var i=0; i<columns.length; i++) {
         var column = $(columns[i]);
-        var colheader = $(".list-header h2", column).text();
+
+        // make sure we only get the node's value, not it's kids
+        var colheader = $(".list-header h2", column)
+            .clone()    //clone the element
+            .children() //select all the children
+            .remove()   //remove all the children
+            .end()  //again go back to selected element
+            .text();
+
         if (Burndown.oc.indexOf(colheader) !== -1) {
             var totals = Burndown.countCardsAndPointsInColumn(column);
             Burndown.openCards += totals['cards'];
