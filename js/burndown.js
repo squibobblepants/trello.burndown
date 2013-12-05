@@ -162,6 +162,9 @@ Burndown.populate = function() {
     */
     
     // TODO: Load the activity that happened yesterday.... LATER
+    //$.getJSON("https://trello.com/1/boards/51f8e608381199b311000f4f/actions", function(data){
+        //console.log(data);
+    //});
     
     // Make a little block for my Burndown on the menu
     Burndown.initialiseTopline();
