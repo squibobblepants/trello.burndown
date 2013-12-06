@@ -2,8 +2,9 @@ var Burndown = Burndown || {};
 
 var points_regex = /((?:^|\s))\((\x3f|\d*\.?\d+)(\))\s?/m;
 
-Burndown.oc = [];
-Burndown.cc = [];
+Burndown.oc = []; // open cards
+Burndown.cc = []; // closed cards
+Burndown.bc = [];  // by Colour
 
 // Some variables for keeping information about the 
 // tickets and stuff.
@@ -16,6 +17,11 @@ Burndown.closedUnpointed = 0;
 Burndown.totalCards = 0;
 Burndown.totalPoints = 0;
 Burndown.totalUnpointed = 0;
+
+byColor = {};
+byColor.totalCards  = 0;
+byColor.openCards   = 0;
+byColor.myColour    = "";
 
 Burndown.initialised = false;
 
@@ -39,6 +45,25 @@ Burndown.initialiseTopline = function() {
             menubar.append(summary);
             
             // Build pop-over
+
+            var popover_byColour = "";
+
+            Burndown.bc.push({
+                totalCards: 12,
+                openCards:  12,
+                myColour: "Blue",
+            });
+
+            for(x in Burndown.bc)
+            {
+                var byColorTmp = "";
+
+                byColorTmp = "<strong>" + Burndown.bc[x].myColour + "</strong>" + Burndown.bc[x].openCards + "/" + Burndown.bc[x].totalCards;
+
+                popover_byColour =+ byColor;
+            }
+            if (popover_byColour=="") popover_byColour = "No Colours found";
+
             var popover = "<div id='scm-detail-popover'>" +  "<hr />" +
                 "<h2>Open Cards</h2>" +
                 "<p>" +
@@ -57,8 +82,11 @@ Burndown.initialiseTopline = function() {
                 "<strong>Total:</strong> " + Burndown.totalCards +  "<br />" +
                 "<strong>Points:</strong> " + Burndown.totalPoints + "<br />" +
                 "<strong>Unpointed:</strong> " + Burndown.totalUnpointed +
-                "</p>" +
+                "</p>" + "<hr />" +
+                "<h2>By Colour</h2>" +
+                popover_byColour +
                 "</div>"
+
             $("body").append(popover);
             
             // Set a listener to open the popover
