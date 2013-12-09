@@ -16,8 +16,25 @@ Burndown.closedUnpointed = 0;
 Burndown.totalCards = 0;
 Burndown.totalPoints = 0;
 Burndown.totalUnpointed = 0;
+Burndown.stories = {};
 
 Burndown.initialised = false;
+
+Burndown.storyHeadlinesHTML = function() {
+    var html = "";
+    console.log(Burndown.stories);
+    for (var story_colour in Burndown.stories) {
+        console.log("Doing a story");
+        var story = Burndown.stories[story_colour];
+        html += "<div class='scm-story-block'>" +
+                "<span class='card-label " + story_colour + "'></span>" +
+                "<strong>Total:</strong> " + story["cards"] + "<br />" +
+                "<strong>Points:</strong> " + story["points"] + "<br />" +
+                "<strong>Unpointed:</strong> " + story["unpointed"] +                
+                "</div>";
+    }
+    return html;
+}
 
 Burndown.initialiseTopline = function() {
     var menuBars = $(".board-header-btns");
@@ -39,25 +56,31 @@ Burndown.initialiseTopline = function() {
             menubar.append(summary);
             
             // Build pop-over
-            var popover = "<div id='scm-detail-popover'>" +  "<hr />" +
+            var popover = "<div id='scm-detail-popover'>" + 
+                "<div class='scm-popover-block'>" +
                 "<h2>Open Cards</h2>" +
                 "<p>" +
                 "<strong>Total:</strong> " + Burndown.openCards + "<br />" +
                 "<strong>Points:</strong> " + Burndown.openPoints + "<br />" +
                 "<strong>Unpointed:</strong> " + Burndown.openUnpointed +
-                "</p>" + "<hr />" +
+                "</p>" + "</div>" +
+                "<div class='scm-popover-block'>" +
                 "<h2>Closed Cards</h2>" +
                 "<p>" +
                 "<strong>Total:</strong> " + Burndown.closedCards +  "<br />" +
                 "<strong>Points:</strong> " + Burndown.closedPoints + "<br />" +
                 "<strong>Unpointed:</strong> " + Burndown.closedUnpointed +
-                "</p>" + "<hr />" +
+                "</p>" + "</div>" +
+                "<div class='scm-popover-block'>" +
                 "<h2>Total Cards</h2>" +
                 "<p>" +
                 "<strong>Total:</strong> " + Burndown.totalCards +  "<br />" +
                 "<strong>Points:</strong> " + Burndown.totalPoints + "<br />" +
                 "<strong>Unpointed:</strong> " + Burndown.totalUnpointed +
-                "</p>" +
+                "</p>" + "</div>" +
+                "<div class='scm-popover-stories'>" +
+                "<h2>Stories</h2>" +
+                Burndown.storyHeadlinesHTML();
                 "</div>"
             $("body").append(popover);
             
@@ -76,6 +99,42 @@ Burndown.initialiseTopline = function() {
     }
 }
 
+Burndown.pointsOnCard = function (card) {
+    var points = $(".point-count", card);
+    if (!points || points.length==0) {
+        // The Burndown for Trello plugin has not fired yet
+        // so check the title for points in it.
+        var title = $(".js-card-name", card)[0].childNodes[1].textContent;
+        var parsedpts = title.match(points_regex)
+        var pts = parsedpts?parseInt(parsedpts[2]):0;
+        totals["points"] += pts;
+        if (pts === 0) {
+            return 0;
+        }
+    } else {
+        var pts = parseInt($(points).text());
+        if (!isNaN(pts)) {
+            return pts;
+        } else {
+            return 0;
+        }
+    }
+}
+
+Burndown.storyColourOnCard = function(card) {
+    var labels = $(".card-label", card);
+    if (labels.length === 0) {
+        return "scm-no-label";
+    }
+    if (labels.length > 1) {
+        // TODO: Support multiple labels properly
+        return "scm-multi-label";
+    }
+    // The label colour is currently always the 
+    // second at the moment.
+    return labels[0].classList[1];
+}
+
 Burndown.countCardsAndPointsInColumn = function(column) {
     // Take a column of cards, count the cards and their points, 
     // and any unpointed ones.
@@ -89,27 +148,30 @@ Burndown.countCardsAndPointsInColumn = function(column) {
         totals['cards'] = cards.length;
         for (var i=0; i<cards.length; i++) {
             var card = $(cards[i]);
-            var points = $(".point-count", card);
-            if (!points || points.length==0) {
-                // The Burndown for Trello plugin has not fired yet
-                // so check the title for points in it.
-                var title = $(".js-card-name", card)[0].childNodes[1].textContent;
-                var parsedpts = title.match(points_regex)
-                var pts = parsedpts?parseInt(parsedpts[2]):0;
-                totals["points"] += pts;
-                if (pts === 0) {
-                    totals["unpointed"] += 1;
+            var points = Burndown.pointsOnCard(card);
+            if (points === 0) {
+                totals["unpointed"] += 1;
+            }
+            totals["points"] += points;
+            
+            // Put the card in a story (label colour) group
+            var colour = Burndown.storyColourOnCard(card);
+            if (colour in Burndown.stories) {
+                Burndown.stories[colour]["cards"] += 1;
+                Burndown.stories[colour]["points"] += points;
+                if (points === 0) {
+                    Burndown.stories[colour]["unpointed"] += 1;
                 }
             } else {
-                var pts = parseInt($(points).text());
-                if (!isNaN(pts)) {
-                    totals["points"] += pts;
-                } else {
-                    totals["unpointed"] += 1;
+                Burndown.stories[colour] = {
+                    "cards": 1,
+                    "points": points,
+                    "unpointed": (points===0) ? 1 : 0
                 }
             }
         }
     }
+    console.log(Burndown.stories);
     return totals;
 }
 

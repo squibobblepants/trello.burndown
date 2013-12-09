@@ -1,7 +1,8 @@
 {
     "name": "Trello Scrum Master Burndown Tool",
-    "version": "0.1",
+    "version": "0.2",
     "description": "Adds Scrum Burndown & velocity to your Trello",
+    "update_url": "https://raw.github.com/squibobblepants/trello.burndown/master/updates.xml",
     "content_scripts": [
             {
                     "matches": ["https://trello.com/*"],
