@@ -14,17 +14,7 @@ Burndown.UNKNOWN = 3;
 // Some variables for keeping information about the 
 // tickets and stuff.
 Burndown.allcards = [];
-Burndown.allColumns = [];
-Burndown.openCards = 0;
-Burndown.openPoints = 0;
-Burndown.openUnpointed = 0;
-Burndown.closedCards = 0;
-Burndown.closedPoints = 0;
-Burndown.closedUnpointed = 0;
-Burndown.totalCards = 0;
-Burndown.totalPoints = 0;
-Burndown.totalUnpointed = 0;
-Burndown.stories = {};
+Burndown.stories = [];
 
 Burndown.initialised = false;
 
@@ -36,7 +26,6 @@ Burndown.pointsOnCard = function (card) {
         var title = $(".js-card-name", card)[0].childNodes[1].textContent;
         var parsedpts = title.match(points_regex)
         var pts = parsedpts?parseInt(parsedpts[2]):0;
-        totals["points"] += pts;
         if (pts === 0) {
             return 0;
         }
@@ -107,10 +96,17 @@ Burndown.getStatsForCards = function(cards) {
         }
      */
     var totals = {
-        "cards": cards.length,
+        "cards": 0,
         "points": 0,
         "unpointed": 0
     }
+    
+    if (typeof(cards) === 'undefined') {
+        return totals;
+    }
+    
+    totals['cards'] = cards.length;
+    
     for (var i = 0; i < cards.length; i++) {
         var card = cards[i];
         totals['points'] += card.points;
@@ -128,7 +124,8 @@ Burndown.storyHeadlinesHTML = function(status) {
         // If we are asking for a particular status, get only those cards
         cardsinstatus = Burndown.getCardsWhere("status", status);
     }
-    for (var story_colour in Burndown.stories) {
+    for (var i = 0; i<Burndown.stories.length; i++) {
+        var story_colour = Burndown.stories[i];
         // Get cards that match the story colour
         var cards = Burndown.getCardsWhere("story", story_colour, cardsinstatus);
         // If there are no matching cards, skip this block
@@ -152,14 +149,18 @@ Burndown.initialiseTopline = function() {
         var menubar = $(menuBars[i]);
         if (menubar.hasClass("left")) {
             // Build my summary info.
+            var openCards = Burndown.getStatsForCards(Burndown.getCardsWhere("status", Burndown.OPEN));
+            var closedCards = Burndown.getStatsForCards(Burndown.getCardsWhere("status", Burndown.CLOSED));
+            var allCards = Burndown.getStatsForCards(Burndown.allcards);
+            
             var summary = "<div id='scrum-master-burndown-summary' class='left'>" +
                 "<span class='scm-heading'>" + 
                 "Remaining: " +
                 "</span>" +
                 "<span class='scm-points'>" +
-                Burndown.openCards + " cards, " +
-                Burndown.openPoints + " points, " +
-                Burndown.openUnpointed + " unpointed cards." +
+                openCards['cards'] + " cards, " +
+                openCards['points'] + " points, " +
+                openCards['unpointed'] + " unpointed cards." +
                 "</span>" +
                 "</div>";
             
@@ -170,30 +171,31 @@ Burndown.initialiseTopline = function() {
                 "<div class='scm-popover-block'>" +
                     "<h2>Open Cards</h2>" +
                     "<p>" +
-                        "<strong>Total:</strong> " + Burndown.openCards + " | " +
-                        "<strong>Points:</strong> " + Burndown.openPoints + " | " +
-                        "<strong>Unpointed:</strong> " + Burndown.openUnpointed +
+                        "<strong>Total:</strong> " + openCards['cards'] + " | " +
+                        "<strong>Points:</strong> " + openCards['points'] + " | " +
+                        "<strong>Unpointed:</strong> " + openCards['unpointed'] +
                     "</p>" + 
                     Burndown.storyHeadlinesHTML(Burndown.OPEN) + 
                 "</div>" +
                 "<div class='scm-popover-block'>" +
                     "<h2>Closed Cards</h2>" +
                     "<p>" +
-                        "<strong>Total:</strong> " + Burndown.closedCards +  " | " +
-                        "<strong>Points:</strong> " + Burndown.closedPoints + " | " +
-                        "<strong>Unpointed:</strong> " + Burndown.closedUnpointed +
+                        "<strong>Total:</strong> " + closedCards['cards'] +  " | " +
+                        "<strong>Points:</strong> " + closedCards['points'] + " | " +
+                        "<strong>Unpointed:</strong> " + closedCards['unpointed'] +
                     "</p>" + 
                     Burndown.storyHeadlinesHTML(Burndown.CLOSED) + 
                 "</div>" +
                 "<div class='scm-popover-block'>" +
                     "<h2>Total Cards</h2>" +
                     "<p>" +
-                        "<strong>Total:</strong> " + Burndown.totalCards +  " | " +
-                        "<strong>Points:</strong> " + Burndown.totalPoints + " | " +
-                        "<strong>Unpointed:</strong> " + Burndown.totalUnpointed +
+                        "<strong>Total:</strong> " + allCards['cards'] +  " | " +
+                        "<strong>Points:</strong> " + allCards['points'] + " | " +
+                        "<strong>Unpointed:</strong> " + allCards['unpointed'] +
                     "</p>" + 
                     Burndown.storyHeadlinesHTML(Burndown.ALL) + 
                 "</div>" +
+                "<a id='scm-refresh' href='#' style='padding-bottom: 1em;'>Sometimes Trello loads TOO slowly, or cards get moved. Click to refresh the stats.</a>" +
             "</div>";
             $("body").append(popover);
             
@@ -212,84 +214,21 @@ Burndown.initialiseTopline = function() {
     }
 }
 
-
-
-Burndown.countCardsAndPointsInColumn = function(column, status) {
-    // Take a column of cards, count the cards and their points, 
-    // and any unpointed ones.
-    var totals = {
-        "cards": 0,
-        "points": 0,
-        "unpointed": 0
-    };
-    var cards = $(".list-card", $(column));
-    if (cards) {
-        totals['cards'] = cards.length;
-        for (var i=0; i<cards.length; i++) {
-            var card = new Burndown.Card($(cards[i]));
-            Burndown.allcards.push(card);
-            
-            var points = card.points;
-            if (points === 0) {
-                totals["unpointed"] += 1;
-            }
-            totals["points"] += points;
-            
-            // Put the card in a story (label colour) group
-            var colour = card.story;
-            if (colour in Burndown.stories) {
-                Burndown.stories[colour]["cards"] += 1;
-                Burndown.stories[colour]["points"] += points;
-                if (points === 0) {
-                    Burndown.stories[colour]["unpointed"] += 1;
-                }
-            } else {
-                Burndown.stories[colour] = {
-                    "cards": 1,
-                    "points": points,
-                    "unpointed": (points===0) ? 1 : 0
-                }
-            }
-        }
-    }
-    return totals;
-}
-
 Burndown.populate = function() {
-    // Get all the columns
-    var columns = $("#board .list");
-    var open_total = {
-        "cards": 0,
-        "points": 0,
-        "unpointed": 0
-    }
-    var closed_total = {
-        "cards": 0,
-        "points": 0,
-        "unpointed": 0
-    }
+    // Get all the cards
+    var cards = $(".list-card");
+    console.log(cards.length);
     // Calculate some points and ting.
-    for (var i=0; i<columns.length; i++) {
-        var column = $(columns[i]);
-        var headernode = $(".list-header h2", column);
-        if (headernode.length != 0) {
-            var colheader = $(".list-header h2", column)[0].childNodes[0].textContent;
-            if (Burndown.oc.indexOf(colheader) !== -1) {
-                var totals = Burndown.countCardsAndPointsInColumn(column, Burndown.OPEN);
-                Burndown.openCards += totals['cards'];
-                Burndown.openUnpointed += totals['unpointed'];
-                Burndown.openPoints += totals['points'];
-            } else if (Burndown.cc.indexOf(colheader) !== -1) {
-                var totals = Burndown.countCardsAndPointsInColumn(column, Burndown.CLOSED);
-                Burndown.closedCards += totals['cards'];
-                Burndown.closedPoints += totals['points'];
-                Burndown.closedUnpointed += totals['unpointed'];
-            }
+    for (var i=0; i<cards.length; i++) {
+        var card = new Burndown.Card($(cards[i]));
+        if (card.status == Burndown.OPEN || card.status == Burndown.CLOSED) {
+            Burndown.allcards.push(card);
+        }
+        if (Burndown.stories.indexOf(card.story) === -1) {
+            console.log(card.story);
+            Burndown.stories.push(card.story);
         }
     }
-    Burndown.totalPoints = Burndown.openPoints + Burndown.closedPoints;
-    Burndown.totalCards = Burndown.openCards + Burndown.closedCards;
-    Burndown.totalUnpointed = Burndown.openUnpointed + Burndown.closedUnpointed;
     
     // TODO: Load the activity that happened yesterday.... LATER
     //$.getJSON("https://trello.com/1/boards/51f8e608381199b311000f4f/actions", function(data){
@@ -298,6 +237,18 @@ Burndown.populate = function() {
     
     // Make a little block for my Burndown on the menu
     Burndown.initialiseTopline();
+    
+    // Register an event on the refresh button.
+    $("#scm-refresh").click(function(event) {
+        event.preventDefault();
+        $("#scrum-master-burndown-summary").remove();
+        $("#scm-detail-popover").remove();
+        Burndown.allcards = [];
+        Burndown.stories = [];
+        Burndown.populate();
+        // 'Click' the summary
+        $("#scrum-master-burndown-summary").click();
+    });
     
     Burndown.initialised = true;
 }
@@ -324,9 +275,7 @@ Burndown.initialise = function() {
 Burndown.showBurndown = function() {
     
 }
-
 $(function(){
     Burndown.initialise();
-    
     // TODO: Register a hook to the refresh link on the summary popup.
 });
