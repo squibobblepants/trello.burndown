@@ -33,14 +33,40 @@
 }
 
 .scm-popover-block {
+    position: relative;
     border-bottom: 1px solid #bcbcbc;
     margin-bottom: 10px;
+    clear: both;
+    float: left;
+    width: 100%;
+}
+
+.scm-popover-block:first-of-type {
+    padding-top: 1.5em;
+}
+
+.scm-popover-block:last-of-type {
+    border-bottom: none;
 }
 
 .scm-story-block {
+    position: relative;
     float: left;
     padding: 0 1em 0 1em;
     margin-bottom: 1em;
+    border-right: 1px solid #bcbcbc;
+}
+
+.scm-story-block:last-of-type {
+    border: none;
+}
+
+.scm-story-block .scm-no-label {
+    background: url(chrome-extension://__MSG_@@extension_id__/images/no-story.png) repeat-x top left;
+}
+
+.scm-story-block .scm-multi-label {
+    background: url(chrome-extension://__MSG_@@extension_id__/images/multi-story.png) repeat-x top left;
 }
 
 .scm-story-block .card-label {

@@ -5,8 +5,16 @@ var points_regex = /((?:^|\s))\((\x3f|\d*\.?\d+)(\))\s?/m;
 Burndown.oc = [];
 Burndown.cc = [];
 
+// Card statuses
+Burndown.ALL = 0;
+Burndown.OPEN = 1;
+Burndown.CLOSED = 2;
+Burndown.UNKNOWN = 3;
+
 // Some variables for keeping information about the 
 // tickets and stuff.
+Burndown.allcards = [];
+Burndown.allColumns = [];
 Burndown.openCards = 0;
 Burndown.openPoints = 0;
 Burndown.openUnpointed = 0;
@@ -19,85 +27,6 @@ Burndown.totalUnpointed = 0;
 Burndown.stories = {};
 
 Burndown.initialised = false;
-
-Burndown.storyHeadlinesHTML = function() {
-    var html = "";
-    console.log(Burndown.stories);
-    for (var story_colour in Burndown.stories) {
-        console.log("Doing a story");
-        var story = Burndown.stories[story_colour];
-        html += "<div class='scm-story-block'>" +
-                "<span class='card-label " + story_colour + "'></span>" +
-                "<strong>Total:</strong> " + story["cards"] + "<br />" +
-                "<strong>Points:</strong> " + story["points"] + "<br />" +
-                "<strong>Unpointed:</strong> " + story["unpointed"] +                
-                "</div>";
-    }
-    return html;
-}
-
-Burndown.initialiseTopline = function() {
-    var menuBars = $(".board-header-btns");
-    for (var i=0; i<menuBars.length; i++){
-        var menubar = $(menuBars[i]);
-        if (menubar.hasClass("left")) {
-            // Build my summary info.
-            var summary = "<div id='scrum-master-burndown-summary' class='left'>" +
-                "<span class='scm-heading'>" + 
-                "Remaining: " +
-                "</span>" +
-                "<span class='scm-points'>" +
-                Burndown.openCards + " cards, " +
-                Burndown.openPoints + " points, " +
-                Burndown.openUnpointed + " unpointed cards." +
-                "</span>" +
-                "</div>";
-            
-            menubar.append(summary);
-            
-            // Build pop-over
-            var popover = "<div id='scm-detail-popover'>" + 
-                "<div class='scm-popover-block'>" +
-                "<h2>Open Cards</h2>" +
-                "<p>" +
-                "<strong>Total:</strong> " + Burndown.openCards + "<br />" +
-                "<strong>Points:</strong> " + Burndown.openPoints + "<br />" +
-                "<strong>Unpointed:</strong> " + Burndown.openUnpointed +
-                "</p>" + "</div>" +
-                "<div class='scm-popover-block'>" +
-                "<h2>Closed Cards</h2>" +
-                "<p>" +
-                "<strong>Total:</strong> " + Burndown.closedCards +  "<br />" +
-                "<strong>Points:</strong> " + Burndown.closedPoints + "<br />" +
-                "<strong>Unpointed:</strong> " + Burndown.closedUnpointed +
-                "</p>" + "</div>" +
-                "<div class='scm-popover-block'>" +
-                "<h2>Total Cards</h2>" +
-                "<p>" +
-                "<strong>Total:</strong> " + Burndown.totalCards +  "<br />" +
-                "<strong>Points:</strong> " + Burndown.totalPoints + "<br />" +
-                "<strong>Unpointed:</strong> " + Burndown.totalUnpointed +
-                "</p>" + "</div>" +
-                "<div class='scm-popover-stories'>" +
-                "<h2>Stories</h2>" +
-                Burndown.storyHeadlinesHTML();
-                "</div>"
-            $("body").append(popover);
-            
-            // Set a listener to open the popover
-            var scmsummary = $("#scrum-master-burndown-summary");
-            var scmpos = scmsummary.offset();
-            scmsummary.click(function(){
-                var scm = $("#scm-detail-popover");
-                scm.css({
-                   'left': scmpos['left'],
-                   'top': scmpos['top'] + 30
-                });
-                scm.toggle();
-            })
-        }
-    }
-}
 
 Burndown.pointsOnCard = function (card) {
     var points = $(".point-count", card);
@@ -135,7 +64,157 @@ Burndown.storyColourOnCard = function(card) {
     return labels[0].classList[1];
 }
 
-Burndown.countCardsAndPointsInColumn = function(column) {
+Burndown.getCardId = function(card) {
+    return $(".card-short-id", card).text();
+}
+
+Burndown.Card = function(cardhtml) {
+    this.id = Burndown.getCardId(cardhtml);
+    this.points = Burndown.pointsOnCard(cardhtml);
+    this.story = Burndown.storyColourOnCard(cardhtml);
+    var columnObj = cardhtml.closest("#board .list")[0]
+    this.column = $(".list-header h2", columnObj)[0].childNodes[0].textContent;
+    if (Burndown.oc.indexOf(this.column) !== -1) {
+        this.status = Burndown.OPEN;
+    } else if (Burndown.cc.indexOf(this.column) !== -1) {
+        this.status = Burndown.CLOSED;
+    } else {
+        this.status = Burndown.UNKNOWN;
+    }
+}
+
+Burndown.getCardsWhere = function(attr, value, cards) {
+    // Return Card objects whose attr (id, points, story, status)
+    // equals the value passed
+    // Optionally accepts a list of cards to use instead of all cards
+    if (typeof(cards) === 'undefined') cards = Burndown.allcards;
+    var matches = [];
+    for (var i = 0; i < cards.length; i++) {
+        var card = cards[i];
+        if (card[attr] === value) {
+            matches.push(card);
+        }
+    }
+    return matches;
+}
+
+Burndown.getStatsForCards = function(cards) {
+    /* Takes a list of cards, and returns:
+        {
+            'cards': <total cards>
+            'points': <total points on cards>
+            'unpointed': <total unpointed cards>
+        }
+     */
+    var totals = {
+        "cards": cards.length,
+        "points": 0,
+        "unpointed": 0
+    }
+    for (var i = 0; i < cards.length; i++) {
+        var card = cards[i];
+        totals['points'] += card.points;
+        if (card.points === 0) {
+            totals['unpointed'] += 1;
+        }
+    }
+    return totals;
+}
+
+Burndown.storyHeadlinesHTML = function(status) {
+    var html = "";
+    var cardsinstatus = Burndown.allcards;
+    if (status !== Burndown.ALL) {
+        // If we are asking for a particular status, get only those cards
+        cardsinstatus = Burndown.getCardsWhere("status", status);
+    }
+    for (var story_colour in Burndown.stories) {
+        // Get cards that match the story colour
+        var cards = Burndown.getCardsWhere("story", story_colour, cardsinstatus);
+        // If there are no matching cards, skip this block
+        if (cards.length == 0) continue;
+        // Get the stats for the cards we have
+        var story = Burndown.getStatsForCards(cards);
+        // Build some HTML for them
+        html += "<div class='scm-story-block'>" +
+                "<span class='card-label " + story_colour + "'></span>" +
+                "<strong>Total:</strong> " + story["cards"] + "<br />" +
+                "<strong>Points:</strong> " + story["points"] + "<br />" +
+                "<strong>Unpointed:</strong> " + story["unpointed"] +                
+                "</div>";
+    }
+    return html;
+}
+
+Burndown.initialiseTopline = function() {
+    var menuBars = $(".board-header-btns");
+    for (var i=0; i<menuBars.length; i++){
+        var menubar = $(menuBars[i]);
+        if (menubar.hasClass("left")) {
+            // Build my summary info.
+            var summary = "<div id='scrum-master-burndown-summary' class='left'>" +
+                "<span class='scm-heading'>" + 
+                "Remaining: " +
+                "</span>" +
+                "<span class='scm-points'>" +
+                Burndown.openCards + " cards, " +
+                Burndown.openPoints + " points, " +
+                Burndown.openUnpointed + " unpointed cards." +
+                "</span>" +
+                "</div>";
+            
+            menubar.append(summary);
+            
+            // Build pop-over
+            var popover = "<div id='scm-detail-popover'>" + 
+                "<div class='scm-popover-block'>" +
+                    "<h2>Open Cards</h2>" +
+                    "<p>" +
+                        "<strong>Total:</strong> " + Burndown.openCards + " | " +
+                        "<strong>Points:</strong> " + Burndown.openPoints + " | " +
+                        "<strong>Unpointed:</strong> " + Burndown.openUnpointed +
+                    "</p>" + 
+                    Burndown.storyHeadlinesHTML(Burndown.OPEN) + 
+                "</div>" +
+                "<div class='scm-popover-block'>" +
+                    "<h2>Closed Cards</h2>" +
+                    "<p>" +
+                        "<strong>Total:</strong> " + Burndown.closedCards +  " | " +
+                        "<strong>Points:</strong> " + Burndown.closedPoints + " | " +
+                        "<strong>Unpointed:</strong> " + Burndown.closedUnpointed +
+                    "</p>" + 
+                    Burndown.storyHeadlinesHTML(Burndown.CLOSED) + 
+                "</div>" +
+                "<div class='scm-popover-block'>" +
+                    "<h2>Total Cards</h2>" +
+                    "<p>" +
+                        "<strong>Total:</strong> " + Burndown.totalCards +  " | " +
+                        "<strong>Points:</strong> " + Burndown.totalPoints + " | " +
+                        "<strong>Unpointed:</strong> " + Burndown.totalUnpointed +
+                    "</p>" + 
+                    Burndown.storyHeadlinesHTML(Burndown.ALL) + 
+                "</div>" +
+            "</div>";
+            $("body").append(popover);
+            
+            // Set a listener to open the popover
+            var scmsummary = $("#scrum-master-burndown-summary");
+            var scmpos = scmsummary.offset();
+            scmsummary.click(function(){
+                var scm = $("#scm-detail-popover");
+                scm.css({
+                   'left': scmpos['left'],
+                   'top': scmpos['top'] + 30
+                });
+                scm.toggle();
+            })
+        }
+    }
+}
+
+
+
+Burndown.countCardsAndPointsInColumn = function(column, status) {
     // Take a column of cards, count the cards and their points, 
     // and any unpointed ones.
     var totals = {
@@ -147,15 +226,17 @@ Burndown.countCardsAndPointsInColumn = function(column) {
     if (cards) {
         totals['cards'] = cards.length;
         for (var i=0; i<cards.length; i++) {
-            var card = $(cards[i]);
-            var points = Burndown.pointsOnCard(card);
+            var card = new Burndown.Card($(cards[i]));
+            Burndown.allcards.push(card);
+            
+            var points = card.points;
             if (points === 0) {
                 totals["unpointed"] += 1;
             }
             totals["points"] += points;
             
             // Put the card in a story (label colour) group
-            var colour = Burndown.storyColourOnCard(card);
+            var colour = card.story;
             if (colour in Burndown.stories) {
                 Burndown.stories[colour]["cards"] += 1;
                 Burndown.stories[colour]["points"] += points;
@@ -171,7 +252,6 @@ Burndown.countCardsAndPointsInColumn = function(column) {
             }
         }
     }
-    console.log(Burndown.stories);
     return totals;
 }
 
@@ -195,36 +275,21 @@ Burndown.populate = function() {
         if (headernode.length != 0) {
             var colheader = $(".list-header h2", column)[0].childNodes[0].textContent;
             if (Burndown.oc.indexOf(colheader) !== -1) {
-                var totals = Burndown.countCardsAndPointsInColumn(column);
+                var totals = Burndown.countCardsAndPointsInColumn(column, Burndown.OPEN);
                 Burndown.openCards += totals['cards'];
                 Burndown.openUnpointed += totals['unpointed'];
                 Burndown.openPoints += totals['points'];
             } else if (Burndown.cc.indexOf(colheader) !== -1) {
-                var totals = Burndown.countCardsAndPointsInColumn(column);
+                var totals = Burndown.countCardsAndPointsInColumn(column, Burndown.CLOSED);
                 Burndown.closedCards += totals['cards'];
                 Burndown.closedPoints += totals['points'];
                 Burndown.closedUnpointed += totals['unpointed'];
             }
         }
     }
-    
     Burndown.totalPoints = Burndown.openPoints + Burndown.closedPoints;
     Burndown.totalCards = Burndown.openCards + Burndown.closedCards;
     Burndown.totalUnpointed = Burndown.openUnpointed + Burndown.closedUnpointed;
-    /*
-    console.log("Totals Open");
-    console.log(Burndown.openCards);
-    console.log(Burndown.openPoints);
-    console.log(Burndown.openUnpointed);
-    console.log("Totals Closed");
-    console.log(Burndown.closedCards);
-    console.log(Burndown.closedPoints);
-    console.log(Burndown.closedUnpointed);
-    console.log("Totals");
-    console.log(Burndown.totalCards);
-    console.log(Burndown.totalPoints);
-    console.log(Burndown.totalUnpointed);
-    */
     
     // TODO: Load the activity that happened yesterday.... LATER
     //$.getJSON("https://trello.com/1/boards/51f8e608381199b311000f4f/actions", function(data){
