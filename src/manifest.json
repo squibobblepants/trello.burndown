@@ -11,7 +11,7 @@
             }
     ],
     "background": {
-       "scripts": ["js/background.js"] 
+       "scripts": ["js/background.js"]
     },
     "options_page": "options.html",
     "manifest_version" : 2,
@@ -25,6 +25,9 @@
     ],
     "permissions": [
             "storage",
-            "background"
+            "background",
+            "webRequest",
+            "webRequestBlocking",
+            "*://*/"
     ]
 }
